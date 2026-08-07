@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HTML Slot Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@700;900&display=swap');
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* * PAGE BACKGROUND TEMPLATE IMAGE
+         * Add image file at: assets/images/page-bg.jpg
+         */
+        body {
+            background-color: #f3f4f6;
+            background-image: url('assets/images/page-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* * INSIDE SCREEN BACKGROUND IMAGE
+         * Add image file at: assets/images/reel-bg.jpg
+         */
+        .reel-background {
+            background-color: #ffffff;
+            background-image: url('assets/images/reel-bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* Responsive Container */
+        .game-container {
+            width: 100%;
+            max-width: min(440px, 68vh);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: auto;
+        }
+
+        /* Outer Frame Blueprint Border */
+        .blueprint-border {
+            border: 6px solid #000000;
+            border-radius: 8px;
+            background-color: #ffffff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Reel Grid Area */
+        .reel-area {
+            position: relative;
+            padding: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .slot-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 8px;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+        }
+
+        .slot-cell {
+            background: rgba(255, 255, 255, 0.95);
+            border: 3px solid #000000;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1 / 1;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.08);
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            padding: 8px;
+        }
+
+        .slot-cell img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+        }
+
+        .slot-cell-emoji {
+            font-size: clamp(2rem, 8vw, 3.2rem);
+            line-height: 1;
+        }
+
+        /* Wireframe Button Styling */
+        .btn-blueprint {
+            background-color: #ffffff;
+            border: 3px solid #000000;
+            color: #000000;
+            font-weight: 900;
+            text-transform: uppercase;
+            transition: all 0.1s ease;
+            box-shadow: 4px 4px 0px 0px #000000;
+            user-select: none;
+        }
+
+        .btn-blueprint:active {
+            box-shadow: 0px 0px 0px 0px #000000 !important;
+            transform: translate(4px, 4px);
+        }
+
+        .btn-blueprint.disabled {
+            opacity: 0.4;
+            box-shadow: 2px 2px 0px 0px #888888;
+            border-color: #666666;
+            color: #666666;
+            pointer-events: none;
+        }
+
+        .btn-blueprint.active-toggle {
+            background-color: #000000;
+            color: #ffffff;
+        }
+
+        .spinning {
+            animation: slot-spin 0.1s linear infinite;
+            filter: blur(2px);
+        }
+
+        @keyframes slot-spin {
+            0% { transform: translateY(-20%); }
+            100% { transform: translateY(20%); }
+        }
+
+        .win-pulse {
+            animation: win-pulse-anim 0.5s ease-in-out infinite alternate;
+            background-color: #fef08a !important;
+            border-color: #ca8a04 !important;
+        }
+
+        @keyframes win-pulse-anim {
+            from { transform: scale(1); }
+            to { transform: scale(1.04); }
+        }
+
+        #message-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Anton', sans-serif;
+            font-size: clamp(2rem, 7vw, 3.2rem);
+            color: #fbbf24;
+            text-shadow: 3px 3px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+            z-index: 50;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            text-align: center;
+            line-height: 1.1;
+            width: 100%;
+        }
+
+        .show-message {
+            opacity: 1 !important;
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center p-3 h-full">
+
+    <div class="game-container">
+        
+        <!-- MAIN GAME FRAME -->
+        <div class="blueprint-border">
+            
+            <!-- 3x3 Grid Reels Container -->
+            <div class="reel-background reel-area">
+                <div class="slot-grid" id="slot-grid">
+                    <!-- 9 cells generated dynamically by JavaScript -->
+                </div>
+                <!-- Win/Info Message Overlay -->
+                <div id="message-overlay">WINNER!</div>
+            </div>
+
+            <!-- STATUS BAR -->
+            <div class="bg-white border-t-[4px] border-black flex justify-between items-center px-3 py-2 w-full text-[11px] sm:text-xs font-black text-black">
+                <div class="leading-none">
+                    Current Amount: <span id="ui-balance">1000</span>
+                </div>
+                <div class="leading-none text-center">
+                    Current Bet: <span id="ui-bet">10</span>
+                </div>
+                <div class="leading-none text-right">
+                    Free Games: <span id="ui-free-games">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTROLS PANEL -->
+        <div class="w-full flex justify-between items-center gap-1.5 pt-1">
+            
+            <!-- Left Bet Buttons -->
+            <div class="flex gap-1.5">
+                <button id="btn-bet-down" class="btn-blueprint w-12 h-12 sm:w-16 sm:h-16 rounded-md flex items-center justify-center text-xs sm:text-sm leading-none">
+                    BET -
+                </button>
+                <button id="btn-bet-up" class="btn-blueprint w-12 h-12 sm:w-16 sm:h-16 rounded-md flex items-center justify-center text-xs sm:text-sm leading-none">
+                    BET +
+                </button>
+            </div>
+
+            <!-- Circular Center Spin Button -->
+            <button id="btn-spin" class="btn-blueprint w-14 h-14 sm:w-18 sm:h-18 rounded-full flex flex-col items-center justify-center text-sm sm:text-base text-center leading-none mx-0.5">
+                <span>SPIN</span>
+            </button>
+
+            <!-- Right Function Buttons -->
+            <div class="flex gap-1.5">
+                <button id="btn-auto-spin" class="btn-blueprint w-12 h-12 sm:w-16 sm:h-16 rounded-md flex flex-col items-center justify-center text-[9px] sm:text-xs leading-tight">
+                    <span>AUTO</span>
+                    <span>SPIN</span>
+                </button>
+                <button id="btn-max-bet" class="btn-blueprint w-12 h-12 sm:w-16 sm:h-16 rounded-md flex flex-col items-center justify-center text-[9px] sm:text-xs leading-tight">
+                    <span>MAX</span>
+                    <span>BET</span>
+                </button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        /* * SYMBOL CONFIGURATION
+         * Paths correspond to your assets/symbols/ folder on GitHub.
+         * If image fails to load, it automatically falls back to the emoji icon.
+         */
+        const SYMBOLS = [
+            { id: 'cherry',  image: 'assets/symbols/cherry.png',  fallbackEmoji: '🍒', multiplier: 5 },
+            { id: 'lemon',   image: 'assets/symbols/lemon.png',   fallbackEmoji: '🍋', multiplier: 3 },
+            { id: 'bell',    image: 'assets/symbols/bell.png',    fallbackEmoji: '🔔', multiplier: 10 },
+            { id: 'diamond', image: 'assets/symbols/diamond.png', fallbackEmoji: '💎', multiplier: 25 },
+            { id: 'seven',   image: 'assets/symbols/seven.png',   fallbackEmoji: '7️⃣', multiplier: 50 },
+            { id: 'star',    image: 'assets/symbols/star.png',    fallbackEmoji: '⭐', multiplier: 0, isScatter: true }
+        ];
+
+        let state = {
+            balance: 1000,
+            bet: 10,
+            minBet: 10,
+            maxBet: 100,
+            betStep: 10,
+            freeGames: 0,
+            isSpinning: false,
+            autoSpinActive: false,
+            grid: Array(9).fill(SYMBOLS[0])
+        };
+
+        const elGrid = document.getElementById('slot-grid');
+        const elBalance = document.getElementById('ui-balance');
+        const elBet = document.getElementById('ui-bet');
+        const elFreeGames = document.getElementById('ui-free-games');
+        const elMsg = document.getElementById('message-overlay');
+
+        const btnSpin = document.getElementById('btn-spin');
+        const btnBetUp = document.getElementById('btn-bet-up');
+        const btnBetDown = document.getElementById('btn-bet-down');
+        const btnMaxBet = document.getElementById('btn-max-bet');
+        const btnAutoSpin = document.getElementById('btn-auto-spin');
+
+        const PAYLINES = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+            [0, 4, 8], [2, 4, 6]             // Diagonals
+        ];
+
+        let spinIntervals = [];
+
+        function renderSymbolToCell(cellElement, symbol) {
+            cellElement.innerHTML = '';
+            
+            const img = document.createElement('img');
+            img.src = symbol.image;
+            img.alt = symbol.id;
+            
+            // If PNG image hasn't been uploaded yet, show fallback emoji
+            img.onerror = () => {
+                cellElement.innerHTML = `<span class="slot-cell-emoji">${symbol.fallbackEmoji}</span>`;
+            };
+
+            cellElement.appendChild(img);
+        }
+
+        function initGame() {
+            elGrid.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'slot-cell';
+                cell.id = `cell-${i}`;
+                const initialSymbol = getRandomSymbol();
+                renderSymbolToCell(cell, initialSymbol);
+                elGrid.appendChild(cell);
+            }
+            updateUI();
+        }
+
+        function getRandomSymbol() {
+            return SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)];
+        }
+
+        function updateUI() {
+            elBalance.textContent = state.balance.toLocaleString();
+            elBet.textContent = state.bet.toLocaleString();
+            elFreeGames.textContent = state.freeGames;
+
+            if (state.bet <= state.minBet || state.isSpinning) {
+                btnBetDown.classList.add('disabled');
+            } else {
+                btnBetDown.classList.remove('disabled');
+            }
+
+            if (state.bet >= state.maxBet || state.isSpinning) {
+                btnBetUp.classList.add('disabled');
+            } else {
+                btnBetUp.classList.remove('disabled');
+            }
+
+            if (state.isSpinning) {
+                btnMaxBet.classList.add('disabled');
+                btnSpin.classList.add('disabled');
+            } else {
+                btnMaxBet.classList.remove('disabled');
+                btnSpin.classList.remove('disabled');
+            }
+            
+            if (state.autoSpinActive) {
+                btnAutoSpin.classList.add('active-toggle');
+            } else {
+                btnAutoSpin.classList.remove('active-toggle');
+            }
+        }
+
+        function showMessage(text, duration = 2000) {
+            elMsg.innerHTML = text;
+            elMsg.classList.add('show-message');
+            setTimeout(() => {
+                elMsg.classList.remove('show-message');
+            }, duration);
+        }
+
+        function clearWinHighlights() {
+            for (let i = 0; i < 9; i++) {
+                document.getElementById(`cell-${i}`).classList.remove('win-pulse');
+            }
+        }
+
+        async function startSpin() {
+            if (state.isSpinning) return;
+            
+            if (state.freeGames === 0 && state.balance < state.bet) {
+                showMessage("NOT ENOUGH<br>FUNDS");
+                state.autoSpinActive = false;
+                updateUI();
+                return;
+            }
+
+            if (state.freeGames > 0) {
+                state.freeGames--;
+            } else {
+                state.balance -= state.bet;
+            }
+
+            state.isSpinning = true;
+            clearWinHighlights();
+            updateUI();
+            elMsg.classList.remove('show-message');
+
+            const cols = [[0,3,6], [1,4,7], [2,5,8]];
+            
+            cols.forEach((col, colIndex) => {
+                col.forEach(cellIndex => {
+                    document.getElementById(`cell-${cellIndex}`).classList.add('spinning');
+                });
+
+                spinIntervals[colIndex] = setInterval(() => {
+                    col.forEach(cellIndex => {
+                        const cellEl = document.getElementById(`cell-${cellIndex}`);
+                        renderSymbolToCell(cellEl, getRandomSymbol());
+                    });
+                }, 100);
+            });
+
+            for (let i = 0; i < 3; i++) {
+                await new Promise(resolve => setTimeout(resolve, 400 + (i * 350)));
+                clearInterval(spinIntervals[i]);
+                
+                cols[i].forEach(cellIndex => {
+                    const el = document.getElementById(`cell-${cellIndex}`);
+                    el.classList.remove('spinning');
+                    const finalSymbol = getRandomSymbol();
+                    state.grid[cellIndex] = finalSymbol;
+                    renderSymbolToCell(el, finalSymbol);
+                });
+            }
+
+            evaluateWin();
+        }
+
+        function evaluateWin() {
+            let totalWin = 0;
+            let scatterCount = 0;
+            let winningCells = new Set();
+
+            state.grid.forEach((sym, index) => {
+                if (sym.isScatter) {
+                    scatterCount++;
+                    winningCells.add(index);
+                }
+            });
+
+            if (scatterCount >= 3) {
+                state.freeGames += 5;
+                showMessage("5 FREE GAMES<br>WON!");
+            }
+
+            PAYLINES.forEach(line => {
+                const [a, b, c] = line;
+                const symA = state.grid[a];
+                const symB = state.grid[b];
+                const symC = state.grid[c];
+
+                if (symA.id === symB.id && symA.id === symC.id && !symA.isScatter) {
+                    const lineWin = state.bet * symA.multiplier;
+                    totalWin += lineWin;
+                    winningCells.add(a);
+                    winningCells.add(b);
+                    winningCells.add(c);
+                }
+            });
+
+            if (totalWin > 0) {
+                state.balance += totalWin;
+                winningCells.forEach(index => {
+                    document.getElementById(`cell-${index}`).classList.add('win-pulse');
+                });
+                
+                if (totalWin >= state.bet * 20) {
+                    showMessage(`BIG WIN!<br>+${totalWin.toLocaleString()}`);
+                } else {
+                    showMessage(`WINNER!<br>+${totalWin.toLocaleString()}`);
+                }
+            }
+
+            state.isSpinning = false;
+            updateUI();
+
+            if (state.autoSpinActive) {
+                setTimeout(() => {
+                    if (state.autoSpinActive) startSpin();
+                }, totalWin > 0 ? 2000 : 600);
+            }
+        }
+
+        btnBetDown.addEventListener('click', () => {
+            if (state.isSpinning) return;
+            if (state.bet > state.minBet) {
+                state.bet -= state.betStep;
+                updateUI();
+            }
+        });
+
+        btnBetUp.addEventListener('click', () => {
+            if (state.isSpinning) return;
+            if (state.bet < state.maxBet) {
+                state.bet += state.betStep;
+                updateUI();
+            }
+        });
+
+        btnMaxBet.addEventListener('click', () => {
+            if (state.isSpinning) return;
+            state.bet = state.maxBet;
+            updateUI();
+        });
+
+        btnSpin.addEventListener('click', () => {
+            if (state.isSpinning) return;
+            state.autoSpinActive = false; 
+            startSpin();
+        });
+
+        btnAutoSpin.addEventListener('click', () => {
+            if (state.isSpinning && !state.autoSpinActive) return; 
+            
+            state.autoSpinActive = !state.autoSpinActive;
+            updateUI();
+            
+            if (state.autoSpinActive && !state.isSpinning) {
+                startSpin();
+            }
+        });
+
+        initGame();
+    </script>
+</body>
+</html>
